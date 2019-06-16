@@ -15,9 +15,11 @@ public class wiki {
 	public static void main(String[] args) {
 		readPage();
 		readLink();
-		int index = getIndexOf("アンパサンド");
-		isNotFound(index);
-		int answerIndex = dfs(index,"$");
+		int startIndex = getIndexOf("アンパサンド");
+		int targetIndex = getIndexOf("プログラミング言語");
+		isNotFound(startIndex);
+		isNotFound(targetIndex);
+		int answerIndex = dfs(startIndex, targetIndex);
 		isNotFound(answerIndex);
 	}
 
@@ -29,7 +31,7 @@ public class wiki {
 			//BufferReaderは1行ずつ読み込む
 			BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
 			//nullまで読み込む
-			String line, title = null;
+			String line;
 			StringTokenizer tok;
 			while ((line = bufferedReader.readLine()) != null) {
 				/*
@@ -39,12 +41,9 @@ public class wiki {
 				*/
 				tok = new StringTokenizer(line);
 				while (tok.hasMoreTokens()) {
-					//idは必要ないので受け取らずにスルーする
-					tok.nextToken();
-					//最後のトークン(=pageのタイトルのみほしい)
-					title = tok.nextToken();
+					pages[index++] = new page(Integer.valueOf(tok.nextToken()), tok.nextToken());
 				}
-				pages[index++] = new page(title);
+
 			}
 			//リソースの開放
 			bufferedReader.close();
@@ -123,37 +122,38 @@ public class wiki {
 	}
 
 	static int getIndexOf(String word) {
-		int index = -1;
 		for (page p : pages) {
-			index++;
 			if (p.title.equals(word))
-				return index;
+				return p.index;
 		}
 		return -1;
 	}
 
 	static void isNotFound(int index) {
-		if(index<0) {
+		if (index < 0) {
 			System.out.println("Not Found!");
 			System.exit(1);
 		}
 	}
 
 	//pから探し始める
-	static int dfs(int start, String target) {
+	static int dfs(int start, int target) {
 		//visitで訪問済みかどうか管理する
-		pages[start].visited = true;
-		Iterator<Integer> itr = pages[start].reference.iterator();
-		while (itr.hasNext()) {
-			int num = itr.next();
-			if (pages[num].title.equals(target)) {
-				System.out.printf("found! %s --> %s \n", pages[start].title, pages[num].title);
-				return num;
-
-			} else {
-				if (pages[num].visited == false) {
-					System.out.printf("%s --> %s \n", pages[start].title, pages[num].title);
-					dfs(num, target);
+		stack stack = new stack();
+		stack.push(start);
+		while (stack.count() > -1) {
+			int current = stack.pop();
+			pages[current].visited = true;
+			System.out.printf("%s --> \n", pages[current].title);
+			if (pages[current].index == target) {
+				System.out.println("found!");
+				return pages[current].index;
+			}
+			Iterator<Integer> itr = pages[current].reference.iterator();
+			while (itr.hasNext()) {
+				int next = itr.next();
+				if (pages[next].visited != true) {
+					stack.push(next);
 				}
 			}
 		}
