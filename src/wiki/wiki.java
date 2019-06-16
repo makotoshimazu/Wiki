@@ -1,9 +1,11 @@
 package wiki;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.StringTokenizer;
 
@@ -32,9 +34,12 @@ public class wiki {
 				デフォルトでは，空白，タブ，改行，用紙送り文字
 				*/
 				tok = new StringTokenizer(line);
-				while (tok.hasMoreTokens())
+				while (tok.hasMoreTokens()) {
+					//idは必要ないので受け取らずにスルーする
+					tok.nextToken();
 					//最後のトークン(=pageのタイトルのみほしい)
 					title = tok.nextToken();
+				}
 				pages[index++] = title;
 			}
 			//リソースの開放
@@ -47,7 +52,6 @@ public class wiki {
 			e.printStackTrace();
 		}
 
-		/*
 		//debug用にoutputStreamに書き込み
 		try {
 			File file = new File("src/pageArray.txt");
@@ -65,6 +69,5 @@ public class wiki {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		 */
 	}
 }
