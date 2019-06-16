@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.StringTokenizer;
 
 public class wiki {
@@ -14,6 +15,10 @@ public class wiki {
 	public static void main(String[] args) {
 		readPage();
 		readLink();
+		int index = getIndexOf("アンパサンド");
+		isNotFound(index);
+		int answerIndex = dfs(index,"$");
+		isNotFound(answerIndex);
 	}
 
 	static void readPage() {
@@ -117,4 +122,41 @@ public class wiki {
 		*/
 	}
 
+	static int getIndexOf(String word) {
+		int index = -1;
+		for (page p : pages) {
+			index++;
+			if (p.title.equals(word))
+				return index;
+		}
+		return -1;
+	}
+
+	static void isNotFound(int index) {
+		if(index<0) {
+			System.out.println("Not Found!");
+			System.exit(1);
+		}
+	}
+
+	//pから探し始める
+	static int dfs(int start, String target) {
+		//visitで訪問済みかどうか管理する
+		pages[start].visited = true;
+		Iterator<Integer> itr = pages[start].reference.iterator();
+		while (itr.hasNext()) {
+			int num = itr.next();
+			if (pages[num].title.equals(target)) {
+				System.out.printf("found! %s --> %s \n", pages[start].title, pages[num].title);
+				return num;
+
+			} else {
+				if (pages[num].visited == false) {
+					System.out.printf("%s --> %s \n", pages[start].title, pages[num].title);
+					dfs(num, target);
+				}
+			}
+		}
+		return -1;
+	}
 }
