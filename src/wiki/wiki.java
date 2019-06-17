@@ -6,9 +6,9 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Scanner;
 import java.util.StringTokenizer;
 
-//TODO コマンドラインで始点と終点を指定する
 //プログラムの実行方法 $ java -Xss16m wiki/wiki (これでスタックサイズを指定)
 
 public class wiki {
@@ -18,13 +18,29 @@ public class wiki {
 
 	public static void main(String[] args) {
 		readPage();
+		System.out.println("Read Page Done!");
 		readLink();
-		int startIndex = getIndexOf("六本木ヒルズ森タワー");
-		int targetIndex = getIndexOf("スクランブル交差点");
-		isNotFound(startIndex);
-		isNotFound(targetIndex);
-		dfs(startIndex, targetIndex, -1);
-		System.out.printf("not found\n");
+		System.out.println("Read Link Done!");
+		int startIndex = getIndexOf("バナナ");
+		Scanner scanner = new Scanner(System.in);
+		//Cntl+Dで終了
+		for (;;) {
+			System.out.print(pages[startIndex].title + " => ");
+			int targetIndex = getIndexOf(scanner.nextLine());
+			if (isNotFound(targetIndex)) {
+				System.out.println("unknown input");
+				continue;
+			}
+			if (isNotFound(dfs(startIndex, targetIndex, -1))) {
+				System.out.printf("Success!\n");
+				editList(startIndex, targetIndex);
+				startIndex = targetIndex;
+			} else {
+				System.out.printf("failed\n");
+				System.out.printf("retry\n");
+				startIndex = getIndexOf("バナナ");
+			}
+		}
 	}
 
 	static void readPage() {
@@ -133,31 +149,40 @@ public class wiki {
 		return -1;
 	}
 
-	static void isNotFound(int index) {
-		if (index < 0) {
-			System.out.println("Not Found!");
-			System.exit(1);
+	//referenceリストの並び替えを行うことでdfsを早くしようという試み
+	static void editList(int startIndex, int targetIndex) {
+		//start -> targetを辿ったと考える
+		//もしtargetの参照リストにstartが入っていたら、target参照リストの先頭にstartを移動する
+		//こうすることで類似のものが引っ張りやすくなるのではないかと想定
+		if (pages[targetIndex].reference.contains(new Integer(startIndex))) {
+			pages[targetIndex].reference.remove(new Integer(startIndex));
+			pages[targetIndex].reference.add(0, new Integer(startIndex));
+			//System.out.println("edited");
 		}
 	}
 
-	//TODO 再起の深さを計算する、深さがリミットを超えたらそれ以上再起をしない
-	static void dfs(int start, int target, int depth) {
+	static boolean isNotFound(int index) {
+		return (index < 0) ? true : false;
+	}
+
+	static int dfs(int start, int target, int depth) {
 		depth++;
 		//visitで訪問済みかどうか管理する
 		pages[start].visited = true;
-		Iterator<Integer> itr = pages[start].reference.iterator();
-		while (itr.hasNext()) {
-			int num = itr.next();
-			if (num == target) {
-				System.out.printf("found! %s --> %s \n", pages[start].title, pages[num].title);
-				System.exit(0);
-				break;
-			} else {
-				if (pages[num].visited == false && depth < MAX_DEPTH) {
-					System.out.printf("%s --> %s \n", pages[start].title, pages[num].title);
-					dfs(num, target, depth);
+		if (depth < MAX_DEPTH) {
+			Iterator<Integer> itr = pages[start].reference.iterator();
+			while (itr.hasNext()) {
+				int num = itr.next();
+				if (num == target) {
+					return num;
+				} else {
+					if (pages[num].visited == false) {
+						//System.out.printf("%s --> %s \n", pages[start].title, pages[num].title);
+						dfs(num, target, depth);
+					}
 				}
 			}
 		}
+		return -1;
 	}
 }
