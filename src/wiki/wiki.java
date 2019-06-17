@@ -31,7 +31,7 @@ public class wiki {
 				System.out.println("unknown input");
 				continue;
 			}
-			if (!isNotFound(dfs(startIndex, targetIndex, -1))) {
+			if (!isNotFound(dfs(startIndex, targetIndex, 0))) {
 				System.out.printf("Success!\n");
 				editList(startIndex, targetIndex);
 				startIndex = targetIndex;
@@ -166,10 +166,9 @@ public class wiki {
 	}
 
 	static int dfs(int start, int target, int depth) {
-		depth++;
 		//visitで訪問済みかどうか管理する
 		pages[start].visited = true;
-		if (depth < MAX_DEPTH) {
+		if (++depth < MAX_DEPTH) {
 			Iterator<Integer> itr = pages[start].reference.iterator();
 			while (itr.hasNext()) {
 				int num = itr.next();
@@ -184,7 +183,7 @@ public class wiki {
 				}
 			}
 		}
-		//見つかる前にここに入ってしまうのでは。
+		//いつもここに入ってしまう(ここに入ってしまうために検索がうまく行ってなさそう?)
 		return -1;
 	}
 }
