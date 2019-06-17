@@ -31,7 +31,7 @@ public class wiki {
 				System.out.println("unknown input");
 				continue;
 			}
-			if (isNotFound(dfs(startIndex, targetIndex, -1))) {
+			if (!isNotFound(dfs(startIndex, targetIndex, -1))) {
 				System.out.printf("Success!\n");
 				editList(startIndex, targetIndex);
 				startIndex = targetIndex;
@@ -174,6 +174,7 @@ public class wiki {
 			while (itr.hasNext()) {
 				int num = itr.next();
 				if (num == target) {
+					//再起から正しく抜けるには？
 					return num;
 				} else {
 					if (pages[num].visited == false) {
@@ -183,6 +184,7 @@ public class wiki {
 				}
 			}
 		}
+		//見つかる前にここに入ってしまうのでは。
 		return -1;
 	}
 }
