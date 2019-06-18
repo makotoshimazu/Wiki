@@ -15,6 +15,7 @@ public class wiki {
 	final static int LEN = 1483277;
 	final static int MAX_DEPTH = 30;
 	static page pages[] = new page[LEN];
+	static boolean isFound;
 
 	public static void main(String[] args) {
 		readPage();
@@ -31,7 +32,9 @@ public class wiki {
 				System.out.println("unknown input");
 				continue;
 			}
-			if (!isNotFound(dfs(startIndex, targetIndex, 0))) {
+			isFound = false;
+			dfs(startIndex, targetIndex, 0);
+			if (isFound) {
 				System.out.printf("Success!\n");
 				editList(startIndex, targetIndex);
 				startIndex = targetIndex;
@@ -165,25 +168,23 @@ public class wiki {
 		return (index < 0) ? true : false;
 	}
 
-	static int dfs(int start, int target, int depth) {
+	static void dfs(int start, int target, int depth) {
 		//visitで訪問済みかどうか管理する
 		pages[start].visited = true;
 		if (++depth < MAX_DEPTH) {
 			Iterator<Integer> itr = pages[start].reference.iterator();
 			while (itr.hasNext()) {
 				int num = itr.next();
+				//System.out.printf("%s --> %s \n", pages[start].title, pages[num].title);
 				if (num == target) {
-					//再起から正しく抜けるには？
-					return num;
+					isFound = true;
+					return;
 				} else {
 					if (pages[num].visited == false) {
-						//System.out.printf("%s --> %s \n", pages[start].title, pages[num].title);
 						dfs(num, target, depth);
 					}
 				}
 			}
 		}
-		//いつもここに入ってしまう(ここに入ってしまうために検索がうまく行ってなさそう?)
-		return -1;
 	}
 }
