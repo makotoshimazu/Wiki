@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.StringTokenizer;
@@ -14,14 +16,31 @@ import java.util.StringTokenizer;
 public class wiki {
 	final static int LEN = 1483277;
 	final static int MAX_DEPTH = 30;
+	final static int LOOP = 3;
 	static page pages[] = new page[LEN];
 	static boolean isFound;
 
 	public static void main(String[] args) {
+		//下準備
 		readPage();
 		System.out.println("Read Page Done!");
 		readLink();
 		System.out.println("Read Link Done!");
+		calcPageRank();
+		System.out.println("Calc Page Rank Done!");
+		// Comparatorを実装した匿名クラス
+		Comparator<Integer> comparator = new Comparator<Integer>() {
+			public int compare(Integer o1, Integer o2) {
+				//0より大きければswapが起きる、今回は降順にしたいのでo2の方が大きい時1とした
+				return (pages[o2].rank > pages[o1].rank) ? 1 : -1;
+			}
+		};
+		//すべてのページの参照リストをページランクの高いものから並び替える
+		//こうすることでポピュラーなものから調べられると推測
+		for (page p : pages)
+			Collections.sort(p.reference, comparator);
+		System.out.println("Page Rank Sort Done!");
+
 		int startIndex = getIndexOf("バナナ");
 		Scanner scanner = new Scanner(System.in);
 		//Cntl+Dで終了
@@ -183,6 +202,22 @@ public class wiki {
 					if (pages[num].visited == false) {
 						dfs(num, target, depth);
 					}
+				}
+			}
+		}
+	}
+
+	//ページランクを計算してみる
+	static void calcPageRank() {
+		for (int i = 0; i < 3; i++) {
+			for (page p : pages) {
+				//referenceは必ず1つ以上あるという想定で行う
+				p.present = p.rank / p.reference.size();
+			}
+			//for文を分けないと同時実行にならない
+			for (page p : pages) {
+				for (int given : p.reference) {
+					pages[given].rank += p.present;
 				}
 			}
 		}
