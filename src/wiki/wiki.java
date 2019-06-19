@@ -1,9 +1,11 @@
 package wiki;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
@@ -15,7 +17,7 @@ import java.util.StringTokenizer;
 
 public class wiki {
 	final static int LEN = 1483277;
-	final static int MAX_DEPTH = 30;
+	final static int MAX_DEPTH = 2;
 	final static int LOOP = 3;
 	static page pages[] = new page[LEN];
 	static boolean isFound;
@@ -31,38 +33,74 @@ public class wiki {
 		// Comparatorを実装した匿名クラス
 		Comparator<Integer> comparator = new Comparator<Integer>() {
 			public int compare(Integer o1, Integer o2) {
-				//0より大きければswapが起きる、今回は降順にしたいのでo2の方が大きい時1とした
-				return (pages[o2].rank > pages[o1].rank) ? 1 : -1;
+				//0より大きければswapが起きる
+				if (pages[o1].rank > pages[o2].rank)
+					return 1;
+				else if (pages[o1].rank < pages[o2].rank)
+					return -1;
+				else
+					return 0;
 			}
 		};
-		//すべてのページの参照リストをページランクの高いものから並び替える
-		//こうすることでポピュラーなものから調べられると推測
+		//すべてのページの参照リストをページランクの低いものから並び替える
+		//こうすることでよりそのページに関連したマニアックなデータから取得できると予想
 		for (page p : pages)
 			Collections.sort(p.reference, comparator);
-		System.out.println("Page Rank Sort Done!");
+		System.out.println("Sort By Page Rank Done!");
+
+		//バナナが参照するリストについてページランクの確認
+		for (int p : pages[getIndexOf("バナナ")].reference)
+			System.out.println(p + " " + pages[p].rank + " " + pages[p].title);
 
 		int startIndex = getIndexOf("バナナ");
 		Scanner scanner = new Scanner(System.in);
+		File file = new File("./searching.txt");
+		BufferedWriter bufferWriter = null;
+		try {
+			bufferWriter = new BufferedWriter(new FileWriter(file));
+		} catch (FileNotFoundException e) {
+			System.out.println(e);
+			//writeでエラーが出た時
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 		//Cntl+Dで終了
 		for (;;) {
 			System.out.print(pages[startIndex].title + " => ");
-			int targetIndex = getIndexOf(scanner.nextLine());
+			int targetIndex = -1;
+			try {
+				targetIndex = getIndexOf(scanner.nextLine());
+			} catch (Exception e) {
+				System.out.println("Exit!");
+				break;
+			}
 			if (isNotFound(targetIndex)) {
-				System.out.println("unknown input");
+				System.out.println("Unknown input");
 				continue;
 			}
 			isFound = false;
-			dfs(startIndex, targetIndex, 0);
+			resetVisited();
+			//dfs(startIndex, targetIndex, 0);
+			try {
+				dfs(startIndex, targetIndex, 0, bufferWriter);
+			} catch (Exception e) {
+			}
 			if (isFound) {
 				System.out.printf("Success!\n");
 				editList(startIndex, targetIndex);
 				startIndex = targetIndex;
 			} else {
-				System.out.printf("failed\n");
-				System.out.printf("retry\n");
+				System.out.printf("Failed\n");
+				System.out.printf("Retry\n");
 				startIndex = getIndexOf("バナナ");
 			}
 		}
+		try {
+			bufferWriter.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		scanner.close();
 	}
 
 	static void readPage() {
@@ -142,12 +180,13 @@ public class wiki {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
 		/*
 		//debug用にoutputStreamに書き込み
 		try {
 			File file = new File("./linkList.txt");
 			BufferedWriter bufferWriter = new BufferedWriter(new FileWriter(file));
-			for (int p : pages[0].reference) {
+			for (int p : pages[getIndexOf("バナナ")].reference) {
 				bufferWriter.write(pages[p].title);
 				//改行コードをOS似合わせて自動で判断して出力
 				bufferWriter.newLine();
@@ -161,6 +200,7 @@ public class wiki {
 			e.printStackTrace();
 		}
 		*/
+
 	}
 
 	static int getIndexOf(String word) {
@@ -174,11 +214,14 @@ public class wiki {
 	//referenceリストの並び替えを行うことでdfsを早くしようという試み
 	static void editList(int startIndex, int targetIndex) {
 		//start -> targetを辿ったと考える
-		//もしtargetの参照リストにstartが入っていたら、target参照リストの先頭にstartを移動する
-		//こうすることで類似のものが引っ張りやすくなるのではないかと想定
+		//もしtargetとstartが相互に参照していたら
+		//startとtargetの参照リストの先頭にお互いを移動する
+		//こうすることで二回目以降の検索が高速になると推測
 		if (pages[targetIndex].reference.contains(new Integer(startIndex))) {
 			pages[targetIndex].reference.remove(new Integer(startIndex));
 			pages[targetIndex].reference.add(0, new Integer(startIndex));
+			pages[startIndex].reference.remove(new Integer(targetIndex));
+			pages[startIndex].reference.add(0, new Integer(targetIndex));
 			//System.out.println("edited");
 		}
 	}
@@ -188,23 +231,51 @@ public class wiki {
 	}
 
 	static void dfs(int start, int target, int depth) {
+		//early return
 		//visitで訪問済みかどうか管理する
-		pages[start].visited = true;
-		if (++depth < MAX_DEPTH) {
-			Iterator<Integer> itr = pages[start].reference.iterator();
-			while (itr.hasNext()) {
-				int num = itr.next();
-				//System.out.printf("%s --> %s \n", pages[start].title, pages[num].title);
-				if (num == target) {
-					isFound = true;
-					return;
-				} else {
-					if (pages[num].visited == false) {
-						dfs(num, target, depth);
-					}
-				}
-			}
+		if (pages[start].visited)
+			return;
+		if (++depth > MAX_DEPTH)
+			return;
+		if (start == target) {
+			isFound = true;
+			return;
 		}
+		pages[start].visited = true;
+		Iterator<Integer> itr = pages[start].reference.iterator();
+		while (itr.hasNext()) {
+			int num = itr.next();
+			System.out.println(pages[start].title + " -> " + pages[num].title);
+			dfs(num, target, depth);
+		}
+	}
+
+	//debug用のメソッドをオーバーロード
+	static void dfs(int start, int target, int depth, BufferedWriter bw) throws IOException {
+		//early return
+		//visitで訪問済みかどうか管理する
+		if (pages[start].visited)
+			return;
+		if (depth++ > MAX_DEPTH)
+			return;
+		if (start == target) {
+			isFound = true;
+			return;
+		}
+		pages[start].visited = true;
+		Iterator<Integer> itr = pages[start].reference.iterator();
+		while (itr.hasNext()) {
+			int num = itr.next();
+			bw.write(pages[start].title + " -> " + pages[num].title);
+			//改行コードをOS似合わせて自動で判断して出力
+			bw.newLine();
+			dfs(num, target, depth, bw);
+		}
+	}
+
+	static void resetVisited() {
+		for (page p : pages)
+			p.visited = false;
 	}
 
 	//ページランクを計算してみる
