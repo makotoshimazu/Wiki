@@ -5,8 +5,8 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -19,8 +19,9 @@ public class wiki {
 	final static int LEN = 1483277;
 	final static int MAX_DEPTH = 2;
 	final static int LOOP = 3;
+	final static String START = "バナナ";
 	static page pages[] = new page[LEN];
-	static boolean isFound;
+	static boolean isFound = false;
 
 	public static void main(String[] args) {
 		//下準備
@@ -47,14 +48,17 @@ public class wiki {
 		for (page p : pages)
 			Collections.sort(p.reference, comparator);
 		System.out.println("Sort By Page Rank Done!");
-
-		//バナナが参照するリストについてページランクの確認
-		for (int p : pages[getIndexOf("バナナ")].reference)
+		/*
+		//STARTが参照するリストについてページランクの確認
+		for (int p : pages[getIndexOf(START)].reference)
 			System.out.println(p + " " + pages[p].rank + " " + pages[p].title);
-
-		int startIndex = getIndexOf("バナナ");
+		*/
+		int startIndex = getIndexOf(START);
 		Scanner scanner = new Scanner(System.in);
-		File file = new File("./searching.txt");
+
+		//File file = new File("./searchingDFS.txt");
+		//File file = new File("./searchingBFS.txt");
+		/*
 		BufferedWriter bufferWriter = null;
 		try {
 			bufferWriter = new BufferedWriter(new FileWriter(file));
@@ -64,6 +68,7 @@ public class wiki {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		*/
 		//Cntl+Dで終了
 		for (;;) {
 			System.out.print(pages[startIndex].title + " => ");
@@ -80,11 +85,19 @@ public class wiki {
 			}
 			isFound = false;
 			resetVisited();
-			//dfs(startIndex, targetIndex, 0);
+			dfs(startIndex, targetIndex, 0);
+			//bfs(startIndex, targetIndex);
+			/*
 			try {
-				dfs(startIndex, targetIndex, 0, bufferWriter);
+				bufferWriter.write("-----------start------------");
+				//改行コードをOS似合わせて自動で判断して出力
+				bufferWriter.newLine();
+				//dfs(startIndex, targetIndex, 0, bufferWriter);
+				bfs(startIndex, targetIndex, bufferWriter);
 			} catch (Exception e) {
+				e.printStackTrace();
 			}
+			*/
 			if (isFound) {
 				System.out.printf("Success!\n");
 				editList(startIndex, targetIndex);
@@ -92,15 +105,18 @@ public class wiki {
 			} else {
 				System.out.printf("Failed\n");
 				System.out.printf("Retry\n");
-				startIndex = getIndexOf("バナナ");
+				startIndex = getIndexOf(START);
 			}
 		}
+		/*
 		try {
 			bufferWriter.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		*/
 		scanner.close();
+
 	}
 
 	static void readPage() {
@@ -220,9 +236,7 @@ public class wiki {
 		if (pages[targetIndex].reference.contains(new Integer(startIndex))) {
 			pages[targetIndex].reference.remove(new Integer(startIndex));
 			pages[targetIndex].reference.add(0, new Integer(startIndex));
-			pages[startIndex].reference.remove(new Integer(targetIndex));
-			pages[startIndex].reference.add(0, new Integer(targetIndex));
-			//System.out.println("edited");
+			System.out.println("edited");
 		}
 	}
 
@@ -235,17 +249,16 @@ public class wiki {
 		//visitで訪問済みかどうか管理する
 		if (pages[start].visited)
 			return;
-		if (++depth > MAX_DEPTH)
-			return;
 		if (start == target) {
 			isFound = true;
 			return;
 		}
+		if (++depth > MAX_DEPTH)
+			return;
 		pages[start].visited = true;
 		Iterator<Integer> itr = pages[start].reference.iterator();
 		while (itr.hasNext()) {
 			int num = itr.next();
-			System.out.println(pages[start].title + " -> " + pages[num].title);
 			dfs(num, target, depth);
 		}
 	}
@@ -256,12 +269,13 @@ public class wiki {
 		//visitで訪問済みかどうか管理する
 		if (pages[start].visited)
 			return;
-		if (depth++ > MAX_DEPTH)
-			return;
 		if (start == target) {
 			isFound = true;
+			System.out.println("depth : " + depth);
 			return;
 		}
+		if (++depth > MAX_DEPTH)
+			return;
 		pages[start].visited = true;
 		Iterator<Integer> itr = pages[start].reference.iterator();
 		while (itr.hasNext()) {
@@ -270,6 +284,75 @@ public class wiki {
 			//改行コードをOS似合わせて自動で判断して出力
 			bw.newLine();
 			dfs(num, target, depth, bw);
+		}
+	}
+
+	static void bfs(int start, int target) {
+		ArrayList<Integer> queue = new ArrayList<Integer>();
+		for (int p : pages[start].reference) {
+			queue.add(p);
+		}
+		int depth = 1;
+		int index = 0;
+		int tail = queue.size();
+		while (true) {
+			int num = queue.get(index++);
+			if (num == target) {
+				isFound = true;
+				return;
+			}
+			pages[num].visited = true;
+			for (int p : pages[num].reference) {
+				if (pages[p].visited)
+					continue;
+				queue.add(p);
+			}
+			if (queue.indexOf(num) == tail - 1) {
+				if (++depth > MAX_DEPTH)
+					return;
+				//0からtail-1(subListはtailを含まない)まで削除
+				queue.subList(0, tail).clear();
+				index = 0;
+				tail = queue.size();
+			}
+		}
+	}
+
+	static void bfs(int start, int target, BufferedWriter bw) throws IOException {
+		ArrayList<Integer> queue = new ArrayList<Integer>();
+		for (int p : pages[start].reference) {
+			queue.add(p);
+			bw.write(pages[start].title + " -> " + pages[p].title);
+			//改行コードをOS似合わせて自動で判断して出力
+			bw.newLine();
+		}
+		int depth = 1;
+		int index = 0;
+		int tail = queue.size();
+		while (true) {
+			int num = queue.get(index++);
+			if (num == target) {
+				isFound = true;
+				System.out.print(depth + " : ");
+				return;
+			}
+			pages[num].visited = true;
+			for (int p : pages[num].reference) {
+				if (pages[p].visited)
+					continue;
+				bw.write(pages[num].title + " -> " + pages[p].title);
+				//改行コードをOS似合わせて自動で判断して出力
+				bw.newLine();
+				queue.add(p);
+			}
+			if (queue.indexOf(num) == tail - 1) {
+				if (++depth > MAX_DEPTH)
+					return;
+				//0からtail-1(subListはtailを含まない)まで削除
+				queue.subList(0, tail).clear();
+				index = 0;
+				tail = queue.size();
+			}
 		}
 	}
 
