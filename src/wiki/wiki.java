@@ -14,6 +14,7 @@ import java.util.Scanner;
 import java.util.StringTokenizer;
 
 //プログラムの実行方法 $ java -Xss16m wiki/wiki (これでスタックサイズを指定)
+//BFSは指定しないと実行が難しい
 
 public class wiki {
 	final static int LEN = 1483277;
@@ -85,8 +86,8 @@ public class wiki {
 			}
 			isFound = false;
 			resetVisited();
-			dfs(startIndex, targetIndex, 0);
-			//bfs(startIndex, targetIndex);
+			//dfs(startIndex, targetIndex, 0);
+			bfs(startIndex, targetIndex);
 			/*
 			try {
 				bufferWriter.write("-----------start------------");
@@ -289,9 +290,8 @@ public class wiki {
 
 	static void bfs(int start, int target) {
 		ArrayList<Integer> queue = new ArrayList<Integer>();
-		for (int p : pages[start].reference) {
+		for (int p : pages[start].reference)
 			queue.add(p);
-		}
 		int depth = 1;
 		int index = 0;
 		int tail = queue.size();
@@ -307,7 +307,8 @@ public class wiki {
 					continue;
 				queue.add(p);
 			}
-			if (queue.indexOf(num) == tail - 1) {
+			//tailもindexも1つ余分に進んでいる
+			if (index == tail) {
 				if (++depth > MAX_DEPTH)
 					return;
 				//0からtail-1(subListはtailを含まない)まで削除
@@ -345,9 +346,11 @@ public class wiki {
 				bw.newLine();
 				queue.add(p);
 			}
-			if (queue.indexOf(num) == tail - 1) {
+			//tailもindexも1つ余分に進んでいる
+			if (index == tail) {
 				if (++depth > MAX_DEPTH)
 					return;
+				System.out.println(depth + " " + tail + " " + index);
 				//0からtail-1(subListはtailを含まない)まで削除
 				queue.subList(0, tail).clear();
 				index = 0;
