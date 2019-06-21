@@ -86,8 +86,11 @@ public class wiki {
 			}
 			isFound = false;
 			resetVisited();
+			long startTime = System.currentTimeMillis();
 			//dfs(startIndex, targetIndex, 0);
 			bfs(startIndex, targetIndex);
+			long endTime = System.currentTimeMillis();
+			System.out.println("処理時間：" + (endTime - startTime) + " ms");
 			/*
 			try {
 				bufferWriter.write("-----------start------------");
