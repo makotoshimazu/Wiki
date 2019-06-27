@@ -6,10 +6,13 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
+import java.util.List;
+import java.util.Queue;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
@@ -21,24 +24,23 @@ public class wiki {
 	final static int MAX_DEPTH = 2;
 	final static int LOOP = 3;
 	final static String START = "バナナ";
-	static page pages[] = new page[LEN];
-	static boolean isFound = false;
 
 	public static void main(String[] args) {
 		//下準備
-		readPage();
+		List<page> pages = readPage("./pages.txt");
+		System.out.printf("pages: %d\n", pages.size());
 		System.out.println("Read Page Done!");
-		readLink();
+		readLinkAndUpdatePageReferences(pages, "./links.txt");
 		System.out.println("Read Link Done!");
-		calcPageRank();
+		calcPageRank(pages);
 		System.out.println("Calc Page Rank Done!");
 		// Comparatorを実装した匿名クラス
 		Comparator<Integer> comparator = new Comparator<Integer>() {
 			public int compare(Integer o1, Integer o2) {
 				//0より大きければswapが起きる
-				if (pages[o1].rank > pages[o2].rank)
+				if (pages.get(o1).rank > pages.get(o2).rank)
 					return 1;
-				else if (pages[o1].rank < pages[o2].rank)
+				else if (pages.get(o1).rank < pages.get(o2).rank)
 					return -1;
 				else
 					return 0;
@@ -54,7 +56,11 @@ public class wiki {
 		for (int p : pages[getIndexOf(START)].reference)
 			System.out.println(p + " " + pages[p].rank + " " + pages[p].title);
 		*/
-		int startIndex = getIndexOf(START);
+		int startIndex = getIndexOf(pages, START);
+		if (startIndex < 0) {
+			System.out.printf("%s is not found.\n", START);
+			return;
+		}
 		Scanner scanner = new Scanner(System.in);
 
 		//File file = new File("./searchingDFS.txt");
@@ -72,10 +78,11 @@ public class wiki {
 		*/
 		//Cntl+Dで終了
 		for (;;) {
-			System.out.print(pages[startIndex].title + " => ");
+			System.out.print(pages.get(startIndex).title + " => ");
 			int targetIndex = -1;
 			try {
-				targetIndex = getIndexOf(scanner.nextLine());
+				// targetIndex = getIndexOf(pages, scanner.nextLine());
+				targetIndex = getIndexOf(pages, "黄色");
 			} catch (Exception e) {
 				System.out.println("Exit!");
 				break;
@@ -84,11 +91,10 @@ public class wiki {
 				System.out.println("Unknown input");
 				continue;
 			}
-			isFound = false;
-			resetVisited();
+			resetVisited(pages);
 			long startTime = System.currentTimeMillis();
 			//dfs(startIndex, targetIndex, 0);
-			bfs(startIndex, targetIndex);
+			int depth = bfs(pages, startIndex, targetIndex);
 			long endTime = System.currentTimeMillis();
 			System.out.println("処理時間：" + (endTime - startTime) + " ms");
 			/*
@@ -102,14 +108,14 @@ public class wiki {
 				e.printStackTrace();
 			}
 			*/
-			if (isFound) {
+			if (depth >= 0) {
 				System.out.printf("Success!\n");
-				editList(startIndex, targetIndex);
+				editList(pages, startIndex, targetIndex);
 				startIndex = targetIndex;
 			} else {
 				System.out.printf("Failed\n");
 				System.out.printf("Retry\n");
-				startIndex = getIndexOf(START);
+				startIndex = getIndexOf(pages, START);
 			}
 		}
 		/*
@@ -123,11 +129,11 @@ public class wiki {
 
 	}
 
-	static void readPage() {
-		int index = 0;
+	static List<page> readPage(String filepath) {
+		List<page> pages = new ArrayList<>();
 		try {
 			//pagesファイルを指定
-			File file = new File("./pages.txt");
+			File file = new File(filepath);
 			//BufferReaderは1行ずつ読み込む
 			BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
 			//nullまで読み込む
@@ -141,9 +147,8 @@ public class wiki {
 				*/
 				tok = new StringTokenizer(line);
 				while (tok.hasMoreTokens()) {
-					pages[index++] = new page(Integer.valueOf(tok.nextToken()), tok.nextToken());
+					pages.add(new page(Integer.valueOf(tok.nextToken()), tok.nextToken()));
 				}
-
 			}
 			//リソースの開放
 			bufferedReader.close();
@@ -173,13 +178,13 @@ public class wiki {
 			e.printStackTrace();
 		}
 		*/
-
+		return pages;
 	}
 
-	static void readLink() {
+	static void readLinkAndUpdatePageReferences(List<page> pages, String filepath) {
 		try {
 			//pagesファイルを指定
-			File file = new File("./links.txt");
+			File file = new File(filepath);
 			//BufferReaderは1行ずつ読み込む
 			BufferedReader bufferedReader = new BufferedReader(new FileReader(file));
 			//nullまで読み込む
@@ -188,7 +193,7 @@ public class wiki {
 			while ((line = bufferedReader.readLine()) != null) {
 				tok = new StringTokenizer(line);
 				while (tok.hasMoreTokens()) {
-					pages[Integer.valueOf(tok.nextToken())].reference.add(Integer.valueOf(tok.nextToken()));
+					pages.get(Integer.valueOf(tok.nextToken())).reference.add(Integer.valueOf(tok.nextToken()));
 				}
 			}
 			//リソースの開放
@@ -223,8 +228,9 @@ public class wiki {
 
 	}
 
-	static int getIndexOf(String word) {
+	static int getIndexOf(List<page> pages, String word) {
 		for (page p : pages) {
+			// This could be faster if you use Map<String, Integer>.
 			if (p.title.equals(word))
 				return p.index;
 		}
@@ -232,14 +238,14 @@ public class wiki {
 	}
 
 	//referenceリストの並び替えを行うことでdfsを早くしようという試み
-	static void editList(int startIndex, int targetIndex) {
+	static void editList(List<page> pages, int startIndex, int targetIndex) {
 		//start -> targetを辿ったと考える
 		//もしtargetとstartが相互に参照していたら
 		//startとtargetの参照リストの先頭にお互いを移動する
 		//こうすることで二回目以降の検索が高速になると推測
-		if (pages[targetIndex].reference.contains(new Integer(startIndex))) {
-			pages[targetIndex].reference.remove(new Integer(startIndex));
-			pages[targetIndex].reference.add(0, new Integer(startIndex));
+		if (pages.get(targetIndex).reference.contains(new Integer(startIndex))) {
+			pages.get(targetIndex).reference.remove(new Integer(startIndex));
+			pages.get(targetIndex).reference.add(0, new Integer(startIndex));
 			System.out.println("edited");
 		}
 	}
@@ -248,127 +254,123 @@ public class wiki {
 		return (index < 0) ? true : false;
 	}
 
-	static void dfs(int start, int target, int depth) {
-		//early return
-		//visitで訪問済みかどうか管理する
-		if (pages[start].visited)
-			return;
+	// Return the route if target is found in this path. If not, return null.
+	static List<Integer> dfs(List<page> pages, int start, int target, int depth) {
 		if (start == target) {
-			isFound = true;
-			return;
+			return new ArrayList<Integer>(Arrays.asList(start));
 		}
-		if (++depth > MAX_DEPTH)
-			return;
-		pages[start].visited = true;
-		Iterator<Integer> itr = pages[start].reference.iterator();
-		while (itr.hasNext()) {
-			int num = itr.next();
-			dfs(num, target, depth);
+		if (depth > MAX_DEPTH)
+			return null;
+		for (int neighbor_index : pages.get(start).reference) {
+			pages.get(neighbor_index).visited = true;
+			List<Integer> route = dfs(pages, neighbor_index, target, depth + 1);
+			if (route != null) {
+				route.add(start);
+				return route;
+			}
 		}
+		return null;
 	}
 
-	//debug用のメソッドをオーバーロード
-	static void dfs(int start, int target, int depth, BufferedWriter bw) throws IOException {
-		//early return
-		//visitで訪問済みかどうか管理する
-		if (pages[start].visited)
-			return;
-		if (start == target) {
-			isFound = true;
-			System.out.println("depth : " + depth);
-			return;
-		}
-		if (++depth > MAX_DEPTH)
-			return;
-		pages[start].visited = true;
-		Iterator<Integer> itr = pages[start].reference.iterator();
-		while (itr.hasNext()) {
-			int num = itr.next();
-			bw.write(pages[start].title + " -> " + pages[num].title);
-			//改行コードをOS似合わせて自動で判断して出力
-			bw.newLine();
-			dfs(num, target, depth, bw);
-		}
-	}
+	// //debug用のメソッドをオーバーロード
+	// static void dfs(int start, int target, int depth, BufferedWriter bw) throws IOException {
+	// 	//early return
+	// 	//visitで訪問済みかどうか管理する
+	// 	if (pages[start].visited)
+	// 		return;
+	// 	if (start == target) {
+	// 		isFound = true;
+	// 		System.out.println("depth : " + depth);
+	// 		return;
+	// 	}
+	// 	if (++depth > MAX_DEPTH)
+	// 		return;
+	// 	pages[start].visited = true;
+	// 	Iterator<Integer> itr = pages[start].reference.iterator();
+	// 	while (itr.hasNext()) {
+	// 		int num = itr.next();
+	// 		bw.write(pages[start].title + " -> " + pages[num].title);
+	// 		//改行コードをOS似合わせて自動で判断して出力
+	// 		bw.newLine();
+	// 		dfs(num, target, depth, bw);
+	// 	}
+	// }
 
-	static void bfs(int start, int target) {
-		ArrayList<Integer> queue = new ArrayList<Integer>();
-		for (int p : pages[start].reference)
-			queue.add(p);
-		int depth = 1;
-		int index = 0;
-		int tail = queue.size();
-		while (true) {
-			int num = queue.get(index++);
+	// Return the steps from |start| to |target| in the |pages|.
+	static int bfs(List<page> pages, int start, int target) {
+		Queue<Integer> queue = new ArrayDeque<>();
+		int depth[] = new int[pages.size()];
+		queue.add(start);
+		depth[start] = 0;
+		pages.get(start).visited = true;
+		while (!queue.isEmpty()) {
+			// Retrieve the first element in the queue.
+			int num = queue.remove();
 			if (num == target) {
-				isFound = true;
-				return;
+				return depth[num];
 			}
-			pages[num].visited = true;
-			for (int p : pages[num].reference) {
-				if (pages[p].visited)
+			if (depth[num] > MAX_DEPTH) {
+				// Target isn't found within MAX_DEPTH.
+				return -1;
+			}
+			for (int p : pages.get(num).reference) {
+				if (pages.get(p).visited)
 					continue;
+				pages.get(p).visited = true;
 				queue.add(p);
-			}
-			//tailもindexも1つ余分に進んでいる
-			if (index == tail) {
-				if (++depth > MAX_DEPTH)
-					return;
-				//0からtail-1(subListはtailを含まない)まで削除
-				queue.subList(0, tail).clear();
-				index = 0;
-				tail = queue.size();
+				depth[p] = depth[num] + 1;
 			}
 		}
+		return -1;
 	}
 
-	static void bfs(int start, int target, BufferedWriter bw) throws IOException {
-		ArrayList<Integer> queue = new ArrayList<Integer>();
-		for (int p : pages[start].reference) {
-			queue.add(p);
-			bw.write(pages[start].title + " -> " + pages[p].title);
-			//改行コードをOS似合わせて自動で判断して出力
-			bw.newLine();
-		}
-		int depth = 1;
-		int index = 0;
-		int tail = queue.size();
-		while (true) {
-			int num = queue.get(index++);
-			if (num == target) {
-				isFound = true;
-				System.out.print(depth + " : ");
-				return;
-			}
-			pages[num].visited = true;
-			for (int p : pages[num].reference) {
-				if (pages[p].visited)
-					continue;
-				bw.write(pages[num].title + " -> " + pages[p].title);
-				//改行コードをOS似合わせて自動で判断して出力
-				bw.newLine();
-				queue.add(p);
-			}
-			//tailもindexも1つ余分に進んでいる
-			if (index == tail) {
-				if (++depth > MAX_DEPTH)
-					return;
-				System.out.println(depth + " " + tail + " " + index);
-				//0からtail-1(subListはtailを含まない)まで削除
-				queue.subList(0, tail).clear();
-				index = 0;
-				tail = queue.size();
-			}
-		}
-	}
+	// static void bfs(int start, int target, BufferedWriter bw) throws IOException {
+	// 	ArrayList<Integer> queue = new ArrayList<Integer>();
+	// 	for (int p : pages[start].reference) {
+	// 		queue.add(p);
+	// 		bw.write(pages[start].title + " -> " + pages[p].title);
+	// 		//改行コードをOS似合わせて自動で判断して出力
+	// 		bw.newLine();
+	// 	}
+	// 	int depth = 1;
+	// 	int index = 0;
+	// 	int tail = queue.size();
+	// 	while (true) {
+	// 		int num = queue.get(index++);
+	// 		if (num == target) {
+	// 			isFound = true;
+	// 			System.out.print(depth + " : ");
+	// 			return;
+	// 		}
+	// 		pages[num].visited = true;
+	// 		for (int p : pages[num].reference) {
+	// 			if (pages[p].visited)
+	// 				continue;
+	// 			bw.write(pages[num].title + " -> " + pages[p].title);
+	// 			//改行コードをOS似合わせて自動で判断して出力
+	// 			bw.newLine();
+	// 			queue.add(p);
+	// 		}
+	// 		//tailもindexも1つ余分に進んでいる
+	// 		if (index == tail) {
+	// 			if (++depth > MAX_DEPTH)
+	// 				return;
+	// 			System.out.println(depth + " " + tail + " " + index);
+	// 			//0からtail-1(subListはtailを含まない)まで削除
+	// 			queue.subList(0, tail).clear();
+	// 			index = 0;
+	// 			tail = queue.size();
+	// 		}
+	// 	}
+	// }
 
-	static void resetVisited() {
+	static void resetVisited(List<page> pages) {
 		for (page p : pages)
 			p.visited = false;
 	}
 
 	//ページランクを計算してみる
-	static void calcPageRank() {
+	static void calcPageRank(List<page> pages) {
 		for (int i = 0; i < 3; i++) {
 			for (page p : pages) {
 				//referenceは必ず1つ以上あるという想定で行う
@@ -377,7 +379,7 @@ public class wiki {
 			//for文を分けないと同時実行にならない
 			for (page p : pages) {
 				for (int given : p.reference) {
-					pages[given].rank += p.present;
+					pages.get(given).rank += p.present;
 				}
 			}
 		}
