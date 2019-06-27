@@ -49,11 +49,11 @@ public class wiki {
 		for (page p : pages)
 			Collections.sort(p.reference, comparator);
 		System.out.println("Sort By Page Rank Done!");
-		/*
+
 		//STARTが参照するリストについてページランクの確認
 		for (int p : pages[getIndexOf(START)].reference)
 			System.out.println(p + " " + pages[p].rank + " " + pages[p].title);
-		*/
+
 		int startIndex = getIndexOf(START);
 		Scanner scanner = new Scanner(System.in);
 
@@ -373,6 +373,8 @@ public class wiki {
 			for (page p : pages) {
 				//referenceは必ず1つ以上あるという想定で行う
 				p.present = p.rank / p.reference.size();
+				if (p.reference.size() != 0)
+					p.rank = 0;
 			}
 			//for文を分けないと同時実行にならない
 			for (page p : pages) {
