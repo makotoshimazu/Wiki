@@ -81,8 +81,7 @@ public class wiki {
 			System.out.print(pages.get(startIndex).title + " => ");
 			int targetIndex = -1;
 			try {
-				// targetIndex = getIndexOf(pages, scanner.nextLine());
-				targetIndex = getIndexOf(pages, "黄色");
+				targetIndex = getIndexOf(pages, scanner.nextLine());
 			} catch (Exception e) {
 				System.out.println("Exit!");
 				break;
@@ -93,10 +92,23 @@ public class wiki {
 			}
 			resetVisited(pages);
 			long startTime = System.currentTimeMillis();
-			//dfs(startIndex, targetIndex, 0);
-			int depth = bfs(pages, startIndex, targetIndex);
+			// List<Integer> route = dfs(pages, startIndex, targetIndex, 0);
+			List<Integer> route = bfs(pages, startIndex, targetIndex);
 			long endTime = System.currentTimeMillis();
 			System.out.println("処理時間：" + (endTime - startTime) + " ms");
+
+			// Print the route.
+			if (route != null) {
+				Collections.reverse(route);
+				System.out.println("Route found:");
+				System.out.printf("%s (%d) ", pages.get(route.get(0)).title, route.get(0));
+				for (Integer n : route.subList(1, route.size())) {
+					System.out.printf(" => %s (%d)", pages.get(n).title, n);
+				}
+				System.out.println("");
+			} else {
+				System.out.println("No route found.");
+			}
 			/*
 			try {
 				bufferWriter.write("-----------start------------");
@@ -108,7 +120,7 @@ public class wiki {
 				e.printStackTrace();
 			}
 			*/
-			if (depth >= 0) {
+			if (route != null) {
 				System.out.printf("Success!\n");
 				editList(pages, startIndex, targetIndex);
 				startIndex = targetIndex;
@@ -262,6 +274,8 @@ public class wiki {
 		if (depth > MAX_DEPTH)
 			return null;
 		for (int neighbor_index : pages.get(start).reference) {
+			if (pages.get(neighbor_index).visited)
+				continue;
 			pages.get(neighbor_index).visited = true;
 			List<Integer> route = dfs(pages, neighbor_index, target, depth + 1);
 			if (route != null) {
@@ -272,46 +286,31 @@ public class wiki {
 		return null;
 	}
 
-	// //debug用のメソッドをオーバーロード
-	// static void dfs(int start, int target, int depth, BufferedWriter bw) throws IOException {
-	// 	//early return
-	// 	//visitで訪問済みかどうか管理する
-	// 	if (pages[start].visited)
-	// 		return;
-	// 	if (start == target) {
-	// 		isFound = true;
-	// 		System.out.println("depth : " + depth);
-	// 		return;
-	// 	}
-	// 	if (++depth > MAX_DEPTH)
-	// 		return;
-	// 	pages[start].visited = true;
-	// 	Iterator<Integer> itr = pages[start].reference.iterator();
-	// 	while (itr.hasNext()) {
-	// 		int num = itr.next();
-	// 		bw.write(pages[start].title + " -> " + pages[num].title);
-	// 		//改行コードをOS似合わせて自動で判断して出力
-	// 		bw.newLine();
-	// 		dfs(num, target, depth, bw);
-	// 	}
-	// }
-
 	// Return the steps from |start| to |target| in the |pages|.
-	static int bfs(List<page> pages, int start, int target) {
+	static List<Integer> bfs(List<page> pages, int start, int target) {
 		Queue<Integer> queue = new ArrayDeque<>();
 		int depth[] = new int[pages.size()];
+		int previous_ids[] = new int[pages.size()];
 		queue.add(start);
 		depth[start] = 0;
+		previous_ids[start] = -1;
 		pages.get(start).visited = true;
 		while (!queue.isEmpty()) {
 			// Retrieve the first element in the queue.
 			int num = queue.remove();
 			if (num == target) {
-				return depth[num];
+				List<Integer> route = new ArrayList<>();
+				// Calculate the route.
+				int current = num;
+				while (current >= 0) {
+					route.add(current);
+					current = previous_ids[current];
+				}
+				return route;
 			}
 			if (depth[num] > MAX_DEPTH) {
 				// Target isn't found within MAX_DEPTH.
-				return -1;
+				return null;
 			}
 			for (int p : pages.get(num).reference) {
 				if (pages.get(p).visited)
@@ -319,50 +318,11 @@ public class wiki {
 				pages.get(p).visited = true;
 				queue.add(p);
 				depth[p] = depth[num] + 1;
+				previous_ids[p] = num;
 			}
 		}
-		return -1;
+		return null;
 	}
-
-	// static void bfs(int start, int target, BufferedWriter bw) throws IOException {
-	// 	ArrayList<Integer> queue = new ArrayList<Integer>();
-	// 	for (int p : pages[start].reference) {
-	// 		queue.add(p);
-	// 		bw.write(pages[start].title + " -> " + pages[p].title);
-	// 		//改行コードをOS似合わせて自動で判断して出力
-	// 		bw.newLine();
-	// 	}
-	// 	int depth = 1;
-	// 	int index = 0;
-	// 	int tail = queue.size();
-	// 	while (true) {
-	// 		int num = queue.get(index++);
-	// 		if (num == target) {
-	// 			isFound = true;
-	// 			System.out.print(depth + " : ");
-	// 			return;
-	// 		}
-	// 		pages[num].visited = true;
-	// 		for (int p : pages[num].reference) {
-	// 			if (pages[p].visited)
-	// 				continue;
-	// 			bw.write(pages[num].title + " -> " + pages[p].title);
-	// 			//改行コードをOS似合わせて自動で判断して出力
-	// 			bw.newLine();
-	// 			queue.add(p);
-	// 		}
-	// 		//tailもindexも1つ余分に進んでいる
-	// 		if (index == tail) {
-	// 			if (++depth > MAX_DEPTH)
-	// 				return;
-	// 			System.out.println(depth + " " + tail + " " + index);
-	// 			//0からtail-1(subListはtailを含まない)まで削除
-	// 			queue.subList(0, tail).clear();
-	// 			index = 0;
-	// 			tail = queue.size();
-	// 		}
-	// 	}
-	// }
 
 	static void resetVisited(List<page> pages) {
 		for (page p : pages)
